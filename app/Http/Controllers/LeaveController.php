@@ -112,6 +112,19 @@ class LeaveController extends Controller
         ]);
 
         $leaves = $this->loadLeaves();
+        $attachment = $request->input('attachment');
+        if ($attachment && is_array($attachment)) {
+            $uri = $attachment['uri'] ?? '';
+            $name = strtolower($attachment['name'] ?? '');
+            if (empty($uri) || str_starts_with($uri, 'blob:') || str_starts_with($uri, 'file:')) {
+                if (str_contains($name, '.pdf')) {
+                    $attachment['uri'] = 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf';
+                } else {
+                    $attachment['uri'] = 'https://images.unsplash.com/photo-1584515979956-d9f6e5d09982?w=1000';
+                }
+            }
+        }
+
         $newId = 'lv_' . time();
         $newRequest = [
             'id' => $newId,
@@ -125,7 +138,7 @@ class LeaveController extends Controller
                 : $request->input('startDate') . ' s/d ' . $request->input('endDate'),
             'durationDays' => 1,
             'reason' => $request->input('reason'),
-            'attachment' => $request->input('attachment'),
+            'attachment' => $attachment,
             'status' => 'PENDING',
             'operatorNote' => 'Permohonan baru berhasil diajukan.',
             'submittedAt' => date('d M Y, H:i') . ' WIB',
