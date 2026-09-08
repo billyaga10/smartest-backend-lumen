@@ -28,6 +28,7 @@ $router->group(['prefix' => 'api'], function () use ($router) {
     $router->post('/student/leave-requests', 'LeaveController@store');
     $router->get('/student/leave-requests/{id}', 'LeaveController@show');
     $router->post('/student/leave-requests/{id}/cancel', 'LeaveController@cancel');
+    $router->post('/student/leave-requests/{id}/status', 'LeaveController@updateStatus');
 
     // Parent Routes
     $router->get('/parent/children', 'ParentController@children');

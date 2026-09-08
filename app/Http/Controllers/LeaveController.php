@@ -158,4 +158,42 @@ class LeaveController extends Controller
 
         return response()->json(['message' => 'Pengajuan izin tidak ditemukan.'], 404);
     }
+
+    public function updateStatus(Request $request, $id)
+    {
+        $this->validate($request, [
+            'status' => 'required|in:APPROVED,REJECTED,CANCELLED,PENDING',
+        ]);
+
+        $leaves = $this->loadLeaves();
+        $found = false;
+        $updatedItem = null;
+
+        foreach ($leaves as &$item) {
+            if ($item['id'] === $id) {
+                $item['status'] = $request->input('status');
+                if ($request->has('operatorNote')) {
+                    $item['operatorNote'] = $request->input('operatorNote');
+                } else if ($item['status'] === 'APPROVED') {
+                    $item['operatorNote'] = 'Disetujui oleh Wali Kelas.';
+                } else if ($item['status'] === 'REJECTED') {
+                    $item['operatorNote'] = 'Permohonan ditolak oleh Wali Kelas.';
+                }
+                $updatedItem = $item;
+                $found = true;
+                break;
+            }
+        }
+
+        if ($found) {
+            $this->saveLeaves($leaves);
+            return response()->json([
+                'status' => 'success',
+                'message' => 'Status permohonan izin berhasil diperbarui.',
+                'data' => $updatedItem,
+            ]);
+        }
+
+        return response()->json(['message' => 'Pengajuan izin tidak ditemukan.'], 404);
+    }
 }
