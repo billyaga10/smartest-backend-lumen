@@ -43,7 +43,7 @@ class FcmController extends Controller
 
     /**
      * POST /api/fcm/send
-     * Trigger a Push Notification from Backend to Device/Topic
+     * Trigger a Push Notification from Backend to Device, Topic, or Student & Parent
      */
     public function sendNotification(Request $request)
     {
@@ -56,21 +56,28 @@ class FcmController extends Controller
         $body = $request->input('body');
         $token = $request->input('fcm_token');
         $topic = $request->input('topic');
+        $studentId = $request->input('student_id');
 
-        if (!empty($topic)) {
+        if (!empty($studentId)) {
+            // Send to Student Token / Topic
+            $this->fcmService->sendPushToTopic("student_{$studentId}", $title, $body, ['role' => 'STUDENT']);
+            // Send to Parent Token / Topic (Orang Tua Santri)
+            $this->fcmService->sendPushToTopic("parent_{$studentId}", $title, "pemantauan: {$body}", ['role' => 'PARENT']);
+            $success = true;
+        } else if (!empty($topic)) {
             $success = $this->fcmService->sendPushToTopic($topic, $title, $body);
         } else if (!empty($token)) {
             $success = $this->fcmService->sendPushToDevice($token, $title, $body);
         } else {
             return response()->json([
                 'status' => 'error',
-                'message' => 'Either fcm_token or topic is required.',
+                'message' => 'Either fcm_token, topic, or student_id is required.',
             ], 422);
         }
 
         return response()->json([
             'status' => $success ? 'success' : 'error',
-            'message' => $success ? 'Push notification sent via FCM.' : 'Failed to send notification via FCM.',
+            'message' => $success ? 'Push notification sent to Student & Parent via FCM.' : 'Failed to send notification via FCM.',
         ]);
     }
 }
