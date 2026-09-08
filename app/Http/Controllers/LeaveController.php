@@ -6,53 +6,82 @@ use Illuminate\Http\Request;
 
 class LeaveController extends Controller
 {
-    private static $leaves = [
-        [
-            'id' => 'lv_001',
-            'requestNumber' => '#IZN-20260908-042',
-            'studentId' => 'STD-1001',
-            'type' => 'SICK',
-            'startDate' => '2026-09-09',
-            'endDate' => '2026-09-10',
-            'formattedDateRange' => '9 Sep 2026 - 10 Sep 2026',
-            'durationDays' => 2,
-            'reason' => 'Demam tinggi disertai flu, dokter menyarankan istirahat selama 2 hari.',
-            'attachment' => [
-                'name' => 'Surat_Dokter_Klinik.pdf',
-                'uri' => 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf',
-                'size' => '1.8 MB',
-                'type' => 'application/pdf',
+    private string $filePath;
+
+    public function __construct()
+    {
+        $this->filePath = storage_path('app/leaves.json');
+    }
+
+    private function getInitialLeaves(): array
+    {
+        return [
+            [
+                'id' => 'lv_001',
+                'requestNumber' => '#IZN-20260908-042',
+                'studentId' => 'STD-1001',
+                'type' => 'SICK',
+                'startDate' => '2026-09-09',
+                'endDate' => '2026-09-10',
+                'formattedDateRange' => '9 Sep 2026 - 10 Sep 2026',
+                'durationDays' => 2,
+                'reason' => 'Demam tinggi disertai flu, dokter menyarankan istirahat selama 2 hari.',
+                'attachment' => [
+                    'name' => 'Surat_Dokter_Klinik.pdf',
+                    'uri' => 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf',
+                    'size' => '1.8 MB',
+                    'type' => 'application/pdf',
+                ],
+                'status' => 'PENDING',
+                'operatorNote' => 'Menunggu persetujuan Wali Kelas (Drs. H. Mulyadi, M.Pd)',
+                'submittedAt' => '8 Sep 2026, 08:30 WIB',
             ],
-            'status' => 'PENDING',
-            'operatorNote' => 'Menunggu persetujuan Wali Kelas (Drs. H. Mulyadi, M.Pd)',
-            'submittedAt' => '8 Sep 2026, 08:30 WIB',
-        ],
-        [
-            'id' => 'lv_002',
-            'requestNumber' => '#IZN-20260901-015',
-            'studentId' => 'STD-1001',
-            'type' => 'PERMISSION',
-            'startDate' => '2026-09-02',
-            'endDate' => '2026-09-02',
-            'formattedDateRange' => '2 Sep 2026',
-            'durationDays' => 1,
-            'reason' => 'Mengikuti Olimpiade Sains Madrasah Tingkat Kota',
-            'attachment' => [
-                'name' => 'Surat_Tugas_Olimpiade.pdf',
-                'uri' => 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf',
-                'size' => '850 KB',
-                'type' => 'application/pdf',
+            [
+                'id' => 'lv_002',
+                'requestNumber' => '#IZN-20260901-015',
+                'studentId' => 'STD-1001',
+                'type' => 'PERMISSION',
+                'startDate' => '2026-09-02',
+                'endDate' => '2026-09-02',
+                'formattedDateRange' => '2 Sep 2026',
+                'durationDays' => 1,
+                'reason' => 'Mengikuti Olimpiade Sains Madrasah Tingkat Kota',
+                'attachment' => [
+                    'name' => 'Surat_Tugas_Olimpiade.pdf',
+                    'uri' => 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf',
+                    'size' => '850 KB',
+                    'type' => 'application/pdf',
+                ],
+                'status' => 'APPROVED',
+                'operatorNote' => 'Disetujui oleh Waka Kesiswaan',
+                'submittedAt' => '1 Sep 2026, 14:15 WIB',
             ],
-            'status' => 'APPROVED',
-            'operatorNote' => 'Disetujui oleh Waka Kesiswaan',
-            'submittedAt' => '1 Sep 2026, 14:15 WIB',
-        ],
-    ];
+        ];
+    }
+
+    private function loadLeaves(): array
+    {
+        if (!file_exists($this->filePath)) {
+            $initial = $this->getInitialLeaves();
+            $this->saveLeaves($initial);
+            return $initial;
+        }
+
+        $content = file_get_contents($this->filePath);
+        $data = json_decode($content, true);
+
+        return is_array($data) ? $data : $this->getInitialLeaves();
+    }
+
+    private function saveLeaves(array $leaves): void
+    {
+        file_put_contents($this->filePath, json_encode($leaves, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
+    }
 
     public function index(Request $request)
     {
         $status = $request->query('status');
-        $data = self::$leaves;
+        $data = $this->loadLeaves();
 
         if ($status && $status !== 'ALL') {
             $data = array_values(array_filter($data, fn($item) => $item['status'] === $status));
@@ -63,7 +92,8 @@ class LeaveController extends Controller
 
     public function show($id)
     {
-        foreach (self::$leaves as $item) {
+        $data = $this->loadLeaves();
+        foreach ($data as $item) {
             if ($item['id'] === $id) {
                 return response()->json($item);
             }
@@ -81,6 +111,7 @@ class LeaveController extends Controller
             'reason' => 'required|max:250',
         ]);
 
+        $leaves = $this->loadLeaves();
         $newId = 'lv_' . time();
         $newRequest = [
             'id' => $newId,
@@ -89,7 +120,9 @@ class LeaveController extends Controller
             'type' => $request->input('type'),
             'startDate' => $request->input('startDate'),
             'endDate' => $request->input('endDate'),
-            'formattedDateRange' => $request->input('startDate') . ' s/d ' . $request->input('endDate'),
+            'formattedDateRange' => $request->input('startDate') === $request->input('endDate')
+                ? $request->input('startDate')
+                : $request->input('startDate') . ' s/d ' . $request->input('endDate'),
             'durationDays' => 1,
             'reason' => $request->input('reason'),
             'attachment' => $request->input('attachment'),
@@ -98,13 +131,31 @@ class LeaveController extends Controller
             'submittedAt' => date('d M Y, H:i') . ' WIB',
         ];
 
-        array_unshift(self::$leaves, $newRequest);
+        array_unshift($leaves, $newRequest);
+        $this->saveLeaves($leaves);
 
         return response()->json($newRequest, 201);
     }
 
     public function cancel($id)
     {
-        return response()->json(['message' => 'Pengajuan izin berhasil dibatalkan.']);
+        $leaves = $this->loadLeaves();
+        $found = false;
+
+        foreach ($leaves as &$item) {
+            if ($item['id'] === $id) {
+                $item['status'] = 'CANCELLED';
+                $item['operatorNote'] = 'Pengajuan dibatalkan oleh siswa.';
+                $found = true;
+                break;
+            }
+        }
+
+        if ($found) {
+            $this->saveLeaves($leaves);
+            return response()->json(['message' => 'Pengajuan izin berhasil dibatalkan.']);
+        }
+
+        return response()->json(['message' => 'Pengajuan izin tidak ditemukan.'], 404);
     }
 }
